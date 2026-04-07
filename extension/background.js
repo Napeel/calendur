@@ -9,9 +9,13 @@ const SCOPES = [
 
 let cachedToken = null;
 
-async function getClientId() {
-  const manifest = chrome.runtime.getManifest();
-  return manifest.oauth2.client_id;
+// Restore token from storage on service worker startup
+chrome.storage.local.get('authToken', (result) => {
+  if (result.authToken) cachedToken = result.authToken;
+});
+
+function getClientId() {
+  return chrome.runtime.getManifest().oauth2.client_id;
 }
 
 async function launchAuth(interactive) {
@@ -19,7 +23,7 @@ async function launchAuth(interactive) {
 
   if (!interactive) return null;
 
-  const clientId = await getClientId();
+  const clientId = getClientId();
   const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   authUrl.searchParams.set('client_id', clientId);
   authUrl.searchParams.set('redirect_uri', REDIRECT_URI);
@@ -45,6 +49,7 @@ async function launchAuth(interactive) {
         const token = params.get('access_token');
         if (token) {
           cachedToken = token;
+          chrome.storage.local.set({ authToken: token });
           resolve(token);
         } else {
           reject(new Error('No access token in response'));
@@ -64,6 +69,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'removeCachedToken') {
     cachedToken = null;
+    chrome.storage.local.remove('authToken');
     sendResponse({ success: true });
     return true;
   }
