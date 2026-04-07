@@ -1,8 +1,8 @@
 // Background service worker for Calendur
 // Uses launchWebAuthFlow for OAuth (works with unpacked extensions in Brave/Chrome)
 
-const EXTENSION_ID = 'ckjcklpepkfibnjihnmngpblljdafmha';
-const REDIRECT_URI = `https://${EXTENSION_ID}.chromiumapp.org/`;
+const REDIRECT_URI = chrome.identity.getRedirectURL();
+console.log('[Calendur] Redirect URI:', REDIRECT_URI);
 const SCOPES = [
   'https://www.googleapis.com/auth/calendar',
   'https://www.googleapis.com/auth/userinfo.email',
@@ -16,6 +16,7 @@ async function getClientId() {
 }
 
 async function launchAuth(interactive) {
+  console.log('[Calendur] REDIRECT_URI =', REDIRECT_URI);
   if (cachedToken) return cachedToken;
 
   if (!interactive) return null;
@@ -66,6 +67,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'removeCachedToken') {
     cachedToken = null;
     sendResponse({ success: true });
+    return true;
+  }
+
+  if (message.type === 'getRedirectURI') {
+    sendResponse({ uri: REDIRECT_URI });
     return true;
   }
 
