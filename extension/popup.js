@@ -130,13 +130,9 @@ function populatePreview(event) {
     previewEndTime.value = event.end.split('T')[1]?.substring(0, 5) || '';
   }
 
-  // Location
-  if (event.location) {
-    previewLocation.value = event.location;
-    locationField.style.display = 'block';
-  } else {
-    locationField.style.display = 'none';
-  }
+  // Location (always show so user can add one)
+  previewLocation.value = event.location || '';
+  locationField.style.display = 'block';
 
   // Recurrence
   if (event.recurrence && event.recurrence.length > 0) {
