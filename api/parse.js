@@ -46,7 +46,14 @@ Context:
       messages: [{ role: 'user', content: userPrompt }],
     });
 
-    const content = response.content[0].text;
+    let content = response.content[0].text.trim();
+
+    // Strip markdown code fences if present
+    const fenceMatch = content.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/);
+    if (fenceMatch) {
+      content = fenceMatch[1].trim();
+    }
+
     const parsed = JSON.parse(content);
 
     return res.status(200).json(parsed);
