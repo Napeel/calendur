@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Calendur",
+  "version": "0.1.0",
+  "description": "Create Google Calendar events from plain text",
+  "permissions": ["identity", "storage"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_page": "options.html",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "oauth2": {
+    "client_id": "PLACEHOLDER.apps.googleusercontent.com",
+    "scopes": ["https://www.googleapis.com/auth/calendar"]
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

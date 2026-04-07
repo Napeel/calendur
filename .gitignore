@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.local
+.superpowers/
+docs/
+.claude/
+.context/
+.conductor/
+.vercel/
+*.log
