@@ -7,7 +7,94 @@
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
-  <div id="app"></div>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <span class="header-icon">📅</span>
+      <span class="header-title">Calendur</span>
+      <span class="header-subtitle">Settings</span>
+    </div>
+
+    <!-- Backend URL -->
+    <div class="section">
+      <div class="field">
+        <div class="field-label">Backend URL</div>
+        <input type="url" id="backend-url" placeholder="https://your-app.vercel.app">
+        <div class="field-hint">Your Vercel deployment URL for event parsing</div>
+      </div>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- Default Calendar -->
+    <div class="section">
+      <div class="field">
+        <div class="field-label">Default Calendar</div>
+        <select id="default-calendar">
+          <option value="primary">Primary</option>
+        </select>
+        <div class="field-hint">Events will be added to this calendar unless changed in preview</div>
+      </div>
+    </div>
+
+    <!-- Default Duration -->
+    <div class="section">
+      <div class="field">
+        <div class="field-label">Default Event Duration</div>
+        <div class="chips" id="duration-chips">
+          <button class="chip" data-value="15">15 min</button>
+          <button class="chip" data-value="30">30 min</button>
+          <button class="chip" data-value="60">1 hour</button>
+          <button class="chip" data-value="120">2 hours</button>
+        </div>
+        <div class="field-hint">Used when no end time or duration is mentioned</div>
+      </div>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- Default Reminders -->
+    <div class="section">
+      <div class="field">
+        <div class="field-label">Default Reminders</div>
+        <div id="reminders-list"></div>
+        <button class="add-reminder" id="add-reminder">+ Add reminder</button>
+        <div class="field-hint">Up to 5 reminders per event. Applied to all new events.</div>
+      </div>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- Google Account -->
+    <div class="section">
+      <div class="field">
+        <div class="field-label">Google Account</div>
+        <div id="account-connected" class="account-row" style="display:none;">
+          <div class="account-avatar" id="account-initial">?</div>
+          <div class="account-info">
+            <div class="account-email" id="account-email">—</div>
+            <div class="account-status">Connected ✓</div>
+          </div>
+          <button class="btn-disconnect" id="btn-disconnect">Disconnect</button>
+        </div>
+        <div id="account-disconnected" style="display:none;">
+          <div class="account-row">
+            <div class="account-info">
+              <div class="account-email" style="color:#64748b;">Not connected</div>
+              <div class="account-status disconnected">Connect to create events</div>
+            </div>
+            <button class="btn-connect" id="btn-connect">Connect</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save -->
+    <button class="btn-save" id="btn-save">Save Settings</button>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">Settings saved!</div>
+  </div>
   <script src="options.js"></script>
 </body>
 </html>
