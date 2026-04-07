@@ -85,7 +85,8 @@ textarea:focus {
   border-color: var(--lavender);
 }
 
-textarea::placeholder {
+textarea::placeholder,
+.field input::placeholder {
   color: var(--text-tertiary);
 }
 
