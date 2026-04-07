@@ -110,7 +110,8 @@ eventText.addEventListener('keydown', (e) => {
 
 const previewTitle = document.getElementById('preview-title');
 const previewDate = document.getElementById('preview-date');
-const previewTime = document.getElementById('preview-time');
+const previewStartTime = document.getElementById('preview-start-time');
+const previewEndTime = document.getElementById('preview-end-time');
 const previewLocation = document.getElementById('preview-location');
 const locationField = document.getElementById('location-field');
 const previewRecurrence = document.getElementById('preview-recurrence');
@@ -120,18 +121,13 @@ const previewCalendar = document.getElementById('preview-calendar');
 function populatePreview(event) {
   previewTitle.value = event.title || '';
 
-  // Parse start datetime for date and time fields
+  // Parse start/end datetime for date and time pickers
   if (event.start) {
-    const startDate = new Date(event.start);
     previewDate.value = event.start.split('T')[0];
-
-    const startTime = formatTime(startDate);
-    let timeStr = startTime;
-    if (event.end) {
-      const endTime = formatTime(new Date(event.end));
-      timeStr = `${startTime} – ${endTime}`;
-    }
-    previewTime.value = timeStr;
+    previewStartTime.value = event.start.split('T')[1]?.substring(0, 5) || '';
+  }
+  if (event.end) {
+    previewEndTime.value = event.end.split('T')[1]?.substring(0, 5) || '';
   }
 
   // Location
@@ -154,12 +150,11 @@ function populatePreview(event) {
   loadCalendars();
 }
 
-function formatTime(date) {
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
+function formatTimeHuman(timeStr) {
+  const [h, m] = timeStr.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const hour = h % 12 || 12;
+  return `${hour}:${m.toString().padStart(2, '0')} ${period}`;
 }
 
 function rruleToHuman(rrule) {
@@ -244,10 +239,10 @@ async function createEvent() {
 
     const settings = await getSettings();
 
-    // Build start/end from edited fields
+    // Build start/end from edited pickers
     const dateVal = previewDate.value;
-    const timeVal = previewTime.value;
-    const { startISO, endISO } = parseTimeRange(dateVal, timeVal, parsedEvent);
+    const startISO = `${dateVal}T${previewStartTime.value}:00`;
+    const endISO = `${dateVal}T${previewEndTime.value}:00`;
 
     const eventBody = {
       summary: previewTitle.value,
@@ -301,7 +296,7 @@ async function createEvent() {
     // Show confirmation
     document.getElementById('confirm-title').textContent = previewTitle.value;
     document.getElementById('confirm-datetime').textContent =
-      `${formatDateHuman(dateVal)} · ${timeVal}`;
+      `${formatDateHuman(dateVal)} · ${formatTimeHuman(previewStartTime.value)} – ${formatTimeHuman(previewEndTime.value)}`;
     document.getElementById('confirm-link').href = createdEventLink;
 
     showState('confirm');
@@ -311,14 +306,6 @@ async function createEvent() {
     btnCreate.disabled = false;
     btnCreate.textContent = 'Create Event ✓';
   }
-}
-
-function parseTimeRange(dateStr, timeStr, fallbackEvent) {
-  // Try to use the parsed event's original ISO times if user didn't change them
-  // Otherwise, do best-effort parsing from the editable fields
-  const startISO = fallbackEvent.start;
-  const endISO = fallbackEvent.end;
-  return { startISO, endISO };
 }
 
 function formatDateHuman(dateStr) {
