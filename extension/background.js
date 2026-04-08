@@ -8,86 +8,83 @@ const SCOPES = [
 ].join(' ');
 
 let cachedToken = null;
+let cachedTokenExpiresAt = null;
+let refreshPromise = null;
 
 // Restore token from storage on service worker startup
-chrome.storage.local.get('authToken', (result) => {
-  if (result.authToken) cachedToken = result.authToken;
+chrome.storage.local.get(['authToken', 'authTokenExpiresAt'], (result) => {
+  if (result.authToken) {
+    cachedToken = result.authToken;
+    cachedTokenExpiresAt = result.authTokenExpiresAt || null;
+  }
 });
 
 function getClientId() {
   return chrome.runtime.getManifest().oauth2.client_id;
 }
 
-function buildAuthUrl(prompt) {
-  const clientId = getClientId();
-  const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-  authUrl.searchParams.set('client_id', clientId);
-  authUrl.searchParams.set('redirect_uri', REDIRECT_URI);
-  authUrl.searchParams.set('response_type', 'token');
-  authUrl.searchParams.set('scope', SCOPES);
-  if (prompt) authUrl.searchParams.set('prompt', prompt);
-  return authUrl.toString();
-}
-
-function extractToken(redirectUrl) {
+function extractTokenData(redirectUrl) {
   const url = new URL(redirectUrl);
   const hash = url.hash.substring(1);
   const params = new URLSearchParams(hash);
-  return params.get('access_token');
+  return {
+    token: params.get('access_token'),
+    expiresIn: parseInt(params.get('expires_in')) || 3600,
+  };
 }
 
-function saveToken(token) {
+function saveToken(token, expiresInSeconds = 3600) {
+  const expiresAt = Date.now() + expiresInSeconds * 1000;
   cachedToken = token;
-  chrome.storage.local.set({ authToken: token });
+  cachedTokenExpiresAt = expiresAt;
+  chrome.storage.local.set({ authToken: token, authTokenExpiresAt: expiresAt });
 }
 
 function clearToken() {
   cachedToken = null;
-  chrome.storage.local.remove('authToken');
+  cachedTokenExpiresAt = null;
+  chrome.storage.local.remove(['authToken', 'authTokenExpiresAt']);
 }
 
-// Try silent re-auth first (no popup), fall back to interactive if needed
-async function refreshTokenSilently() {
-  return new Promise((resolve) => {
-    chrome.identity.launchWebAuthFlow(
-      { url: buildAuthUrl('none'), interactive: false },
-      (redirectUrl) => {
-        if (chrome.runtime.lastError || !redirectUrl) {
-          resolve(null);
-          return;
-        }
-        const token = extractToken(redirectUrl);
-        if (token) {
-          saveToken(token);
-          resolve(token);
-        } else {
-          resolve(null);
-        }
-      }
-    );
-  });
+function isTokenFresh() {
+  // Consider token expired if within 60s of expiry or no expiry info
+  if (!cachedToken) return false;
+  if (!cachedTokenExpiresAt) return false;
+  return Date.now() < cachedTokenExpiresAt - 60000;
 }
 
-async function launchAuth(interactive) {
-  if (cachedToken) return cachedToken;
+// Get a valid token — restores from storage, checks expiry, re-auths if needed
+async function getValidToken(interactive) {
+  // Deduplicate concurrent refresh attempts
+  if (refreshPromise) return refreshPromise;
 
-  // Check storage in case service worker restarted before async restore finished
-  const stored = await chrome.storage.local.get('authToken');
+  // Fast path: in-memory token is still fresh
+  if (cachedToken && isTokenFresh()) return cachedToken;
+
+  // Check storage in case service worker restarted
+  const stored = await chrome.storage.local.get(['authToken', 'authTokenExpiresAt']);
   if (stored.authToken) {
     cachedToken = stored.authToken;
-    return cachedToken;
+    cachedTokenExpiresAt = stored.authTokenExpiresAt || null;
+    if (isTokenFresh()) return cachedToken;
   }
 
-  // Try silent renewal first (uses existing Google session cookie)
-  const silentToken = await refreshTokenSilently();
-  if (silentToken) return silentToken;
+  // Token is missing or expired — need to re-authenticate
+  clearToken();
 
   if (!interactive) return null;
 
-  // Fall back to interactive consent
-  return new Promise((resolve, reject) => {
+  // Interactive re-auth (shows Google login popup)
+  refreshPromise = new Promise((resolve, reject) => {
+    const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    authUrl.searchParams.set('client_id', getClientId());
+    authUrl.searchParams.set('redirect_uri', REDIRECT_URI);
+    authUrl.searchParams.set('response_type', 'token');
+    authUrl.searchParams.set('scope', SCOPES);
+    authUrl.searchParams.set('prompt', 'consent');
+
     chrome.identity.launchWebAuthFlow(
-      { url: buildAuthUrl('consent'), interactive: true },
+      { url: authUrl.toString(), interactive: true },
       (redirectUrl) => {
         if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message));
@@ -97,40 +94,23 @@ async function launchAuth(interactive) {
           reject(new Error('No redirect URL received'));
           return;
         }
-        const token = extractToken(redirectUrl);
+        const { token, expiresIn } = extractTokenData(redirectUrl);
         if (token) {
-          saveToken(token);
+          saveToken(token, expiresIn);
           resolve(token);
         } else {
           reject(new Error('No access token in response'));
         }
       }
     );
-  });
-}
+  }).finally(() => { refreshPromise = null; });
 
-// Validate token, silently refresh if expired
-async function getValidToken() {
-  let token = cachedToken;
-  if (!token) {
-    const stored = await chrome.storage.local.get('authToken');
-    token = stored.authToken || null;
-    if (token) cachedToken = token;
-  }
-  if (!token) return null;
-
-  // Quick validation
-  const res = await fetch('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=' + token);
-  if (res.ok) return token;
-
-  // Token expired — try silent refresh
-  clearToken();
-  return refreshTokenSilently();
+  return refreshPromise;
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'getAuthToken') {
-    launchAuth(message.interactive !== false)
+    getValidToken(message.interactive !== false)
       .then(token => sendResponse({ token }))
       .catch(err => sendResponse({ error: err.message }));
     return true;
@@ -145,7 +125,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'getUserInfo') {
     (async () => {
       try {
-        const token = await getValidToken();
+        const token = await getValidToken(false);
         if (!token) {
           sendResponse({ error: 'Not authenticated' });
           return;
@@ -153,9 +133,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) {
+        if (res.status === 401) {
           clearToken();
-          sendResponse({ error: 'Failed to get user info' });
+          sendResponse({ error: 'Token expired' });
           return;
         }
         const info = await res.json();

@@ -281,13 +281,32 @@ async function createEvent() {
       }
     );
 
-    if (!res.ok) {
+    if (res.status === 401) {
+      // Token expired mid-use — clear and retry once
+      await new Promise(r => chrome.runtime.sendMessage({ type: 'removeCachedToken' }, r));
+      const newToken = await getAuthToken();
+      if (!newToken) throw new Error('Session expired. Please reconnect in Settings.');
+      const retryRes = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${newToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(eventBody),
+        }
+      );
+      if (!retryRes.ok) {
+        const err = await retryRes.json().catch(() => ({}));
+        throw new Error(err.error?.message || `Calendar API error (${retryRes.status})`);
+      }
+      const retryCreated = await retryRes.json();
+      createdEventLink = retryCreated.htmlLink;
+    } else if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error?.message || `Calendar API error (${res.status})`);
+    } else {
+      const created = await res.json();
+      createdEventLink = created.htmlLink;
     }
-
-    const created = await res.json();
-    createdEventLink = created.htmlLink;
 
     // Show confirmation
     document.getElementById('confirm-title').textContent = previewTitle.value;
