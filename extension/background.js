@@ -21,6 +21,13 @@ function getClientId() {
 async function launchAuth(interactive) {
   if (cachedToken) return cachedToken;
 
+  // Check storage in case service worker restarted before async restore finished
+  const stored = await chrome.storage.local.get('authToken');
+  if (stored.authToken) {
+    cachedToken = stored.authToken;
+    return cachedToken;
+  }
+
   if (!interactive) return null;
 
   const clientId = getClientId();
@@ -77,7 +84,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'getUserInfo') {
     (async () => {
       try {
-        const token = cachedToken;
+        let token = cachedToken;
+        if (!token) {
+          const stored = await chrome.storage.local.get('authToken');
+          token = stored.authToken || null;
+          if (token) cachedToken = token;
+        }
         if (!token) {
           sendResponse({ error: 'Not authenticated' });
           return;
