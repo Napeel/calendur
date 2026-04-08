@@ -16,12 +16,16 @@ Supports recurring events (`"weekly standup every Monday at 10am"`) and timezone
 ## Project Structure
 
 ```
-├── api/parse.js           # Vercel serverless function (calls Claude)
+├── api/
+│   ├── parse.js           # Vercel serverless function (calls Claude)
+│   └── auth/
+│       ├── token.js       # OAuth code → token exchange
+│       └── refresh.js     # Silent token refresh
 ├── extension/
 │   ├── manifest.json      # Chrome Manifest V3
 │   ├── popup.html/css/js  # Main popup UI
 │   ├── options.html/css/js# Settings page
-│   ├── background.js      # Service worker (OAuth)
+│   ├── background.js      # Service worker (OAuth + token management)
 │   └── icons/             # Extension icons
 ├── package.json
 └── vercel.json
@@ -84,4 +88,4 @@ Set the environment variables in Vercel dashboard:
 - **Extension:** Vanilla HTML/CSS/JS, Chrome Manifest V3
 - **Backend:** Vercel serverless function, Anthropic SDK
 - **AI:** Claude Haiku for text parsing
-- **Auth:** Google OAuth 2.0 via `chrome.identity`
+- **Auth:** Google OAuth 2.0 (authorization code flow with refresh tokens)
