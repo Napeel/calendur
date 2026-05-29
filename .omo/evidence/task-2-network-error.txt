@@ -1,0 +1,49 @@
+# Task 2 Network Error Evidence
+
+## Inspection: normalized offline and failed fetch branches
+Command: rg --line-number "navigator\.onLine|network_unavailable|backend_unavailable|catch|ApiClientError" src/lib/api.ts
+33:export class ApiClientError extends Error implements AppError {
+40:    this.name = 'ApiClientError';
+47:export function isApiClientError(error: unknown): error is ApiClientError {
+48:  return error instanceof ApiClientError;
+78:  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+79:    throw new ApiClientError({
+80:      code: 'network_unavailable',
+99:  } catch {
+100:    throw new ApiClientError({
+101:      code: 'backend_unavailable',
+116:  const data = (await response.json().catch(() => ({}))) as ErrorResponseBody;
+120:function normalizeResponseError(path: ApiPath, status: number, serverError?: string): ApiClientError {
+122:  return new ApiClientError({
+135:  if (status === 502 || status === 503 || status === 504) return 'backend_unavailable';
+143:  if (code === 'network_unavailable') return 'network';
+144:  if (code === 'backend_unavailable') return 'backend';
+155:    case 'network_unavailable':
+157:    case 'backend_unavailable':
+
+## Inspection: response error normalization from JSON { error }
+Command: rg --line-number "readErrorResponse|normalizeResponseError|getErrorCode|getErrorMessage|serverError|auth_required|parse_failed|google_failed" src/lib/api.ts
+108:    const serverError = await readErrorResponse(response);
+109:    throw normalizeResponseError(path, response.status, serverError);
+115:async function readErrorResponse(response: Response): Promise<string | undefined> {
+120:function normalizeResponseError(path: ApiPath, status: number, serverError?: string): ApiClientError {
+121:  const code = getErrorCode(path, status, serverError);
+126:    message: getErrorMessage(code, serverError, status),
+130:function getErrorCode(path: ApiPath, status: number, serverError?: string): AppErrorCode {
+131:  if (serverError === 'auth_required' || status === 401) return 'auth_required';
+136:  if (path === API_PATHS.parse) return 'parse_failed';
+137:  if (path === API_PATHS.calendars || path === API_PATHS.createEvent) return 'google_failed';
+138:  if (path === API_PATHS.session || path === API_PATHS.logout) return 'auth_required';
+145:  if (code === 'auth_required') return 'auth';
+151:function getErrorMessage(code: AppErrorCode, serverError: string | undefined, status: number): string {
+152:  if (serverError && serverError !== 'auth_required') return serverError;
+159:    case 'auth_required':
+161:    case 'parse_failed':
+163:    case 'google_failed':
+
+## Manual driver: import API client and exercise normalized offline/session paths
+Command: node --input-type=module <typescript-transpile-driver>
+offline parse error code: network_unavailable
+fetch path: /api/web/auth/session
+fetch method: GET
+session connected: false

@@ -1,0 +1,28 @@
+Task 3 session no-token-leak evidence - 2026-05-28
+
+Implemented routes:
+- GET /api/web/auth/start: creates encrypted state cookie and redirects to Google OAuth.
+- GET /api/web/auth/callback: validates state, exchanges code server-side, stores refresh token only in encrypted HttpOnly session cookie, redirects to app root.
+- GET /api/web/auth/session: returns connected/user/scopes only, or disconnected/auth_required; it never returns Google token material.
+- POST /api/web/auth/logout: destroys encrypted session cookie and returns disconnected state.
+
+Session decision:
+- Library: iron-session.
+- Env: SESSION_SECRET must be set and >= 32 characters.
+- Cookie: calendur_web_session, HttpOnly, Secure in production, SameSite=Lax, Path=/, Max-Age=2592000.
+- Google refresh token is stored only inside the encrypted server-managed cookie.
+- Google access tokens are generated/refreshed server-side only and are not returned to browser JSON.
+
+Inspection:
+- ast-grep over res.status(...).json(...) in api/web found JSON bodies limited to { error }, { connected: false }, { connected: false, error: 'auth_required' }, and getPublicSession(session).
+- getPublicSession(session) returns only { connected, user, scopes }.
+- rg token-term scan found token/client-secret strings only in server-side token exchange/refresh/userinfo code paths, not in frontend-readable JSON response objects.
+
+Manual route invocation with dummy env:
+- Command: SESSION_SECRET=abcdefghijklmnopqrstuvwxyz123456 GOOGLE_CLIENT_ID=dummy.apps.googleusercontent.com NODE_ENV=production node --input-type=module -e "... import and invoke start/session handlers ..."
+- Output: {"startStatus":302,"sessionStatus":200,"sessionBody":{"connected":false},"cookieHasHttpOnly":true,"cookieHasSecure":true,"cookieHasSameSiteLax":true,"cookieHasPath":true,"cookieHasMaxAge":true}
+
+Verification commands:
+- npm install: exits 0; npm reported 2 moderate audit findings.
+- npm run build: exits 0; Vite built dist successfully.
+- lsp_diagnostics: no diagnostics for api/web/_session.js and api/web/auth/*.js.

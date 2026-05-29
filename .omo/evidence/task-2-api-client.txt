@@ -1,0 +1,36 @@
+# Task 2 API Client Evidence
+
+## Command: npm run build
+
+> calendur@0.1.0 build
+> vite build
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+vite v5.4.21 building for production...
+transforming...
+✓ 31 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.96 kB │ gzip:  0.48 kB
+dist/assets/index-CvTgde9w.css    2.11 kB │ gzip:  0.94 kB
+dist/assets/index-DCXsYdSU.js   144.01 kB │ gzip: 46.35 kB
+✓ built in 243ms
+
+## Inspection: no Backend URL setting or hardcoded non-relative API URL in src/lib/api.ts
+Command: rg --line-number "backendUrl|localhost|https?://" src/lib/api.ts
+
+## Inspection: same-origin API paths in src/lib/api.ts
+Command: rg --line-number "/api/parse|/api/web/auth/session|/api/web/auth/logout|/api/web/calendar/list|/api/web/calendar/create" src/lib/api.ts
+13:  parse: '/api/parse',
+14:  session: '/api/web/auth/session',
+15:  logout: '/api/web/auth/logout',
+16:  calendars: '/api/web/calendar/list',
+17:  createEvent: '/api/web/calendar/create',
+
+## Inspection: exported API functions
+Command: rg --line-number "export async function (parseEvent|getSession|logout|listCalendars|createEvent)" src/lib/api.ts
+51:export async function parseEvent(request: ParseEventRequest): Promise<ParsedEvent> {
+58:export async function getSession(): Promise<SessionState> {
+62:export async function logout(): Promise<SessionState> {
+66:export async function listCalendars(): Promise<CalendarListResult> {
+70:export async function createEvent(payload: CreateEventPayload): Promise<CreateEventResult> {

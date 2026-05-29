@@ -1,0 +1,25 @@
+Task 3 extension auth preservation evidence - 2026-05-28
+
+Existing extension auth files inspected before implementation:
+- api/auth/token.js
+- api/auth/refresh.js
+- extension/background.js
+
+Preservation result:
+- No edits were made to api/auth/token.js.
+- No edits were made to api/auth/refresh.js.
+- No edits were made to extension/background.js.
+- New PWA auth routes were added separately under /api/web/auth/*.
+
+Verification command:
+- GIT_MASTER=1 git diff -- api/auth/token.js api/auth/refresh.js extension/background.js
+
+Output:
+- Empty diff.
+
+Route namespace check:
+- Web login: /api/web/auth/start
+- Web callback: /api/web/auth/callback
+- Web session: /api/web/auth/session
+- Web logout: /api/web/auth/logout
+- Extension routes remain /api/auth/token and /api/auth/refresh.

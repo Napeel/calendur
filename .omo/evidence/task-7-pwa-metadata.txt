@@ -1,0 +1,76 @@
+Task 7 Evidence: iPhone PWA Install Metadata
+=============================================
+
+Date: 2026-05-28
+Method: Build output inspection + source verification
+
+1. iOS / Add-to-Home-Screen metadata in index.html
+---------------------------------------------------
+All required iOS meta tags present in built dist/index.html:
+
+  <link rel="apple-touch-icon" href="/icon-192.svg" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Calendur" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0f172a" />
+
+- apple-touch-icon: references /icon-192.svg (SVG supported on iOS 15+)
+- apple-mobile-web-app-capable: "yes" enables standalone mode from Home Screen
+- apple-mobile-web-app-title: "Calendur" shown under icon on Home Screen
+- apple-mobile-web-app-status-bar-style: "black-translucent" allows content
+  to extend behind the status bar with safe-area insets
+- theme-color: #0f172a matches manifest theme_color
+
+2. Manifest installability fields
+-----------------------------------
+dist/manifest.webmanifest contains all required fields:
+
+  name:             "Calendur"
+  short_name:       "Calendur"
+  description:      "Turn plain text into Google Calendar events."
+  start_url:        "/"
+  scope:            "/"
+  display:          "standalone"
+  background_color: "#0b1220"
+  theme_color:      "#0f172a"
+  categories:       ["productivity", "utilities"]
+  icons:            192x192 (any), 512x512 (any), 512x512 (maskable)
+
+All icons are SVG (image/svg+xml). Maskable icon added for better
+Android/iOS install appearance.
+
+3. Static assets in dist/
+-------------------------
+  dist/icon-192.svg           742B
+  dist/icon-512.svg           751B
+  dist/manifest.webmanifest   680B
+
+4. Safe-area CSS
+-----------------
+src/styles.css defines:
+  --safe-top:    env(safe-area-inset-top, 0px)
+  --safe-right:  env(safe-area-inset-right, 0px)
+  --safe-bottom: env(safe-area-inset-bottom, 0px)
+  --safe-left:   env(safe-area-inset-left, 0px)
+
+Body padding uses these variables. Shell uses 100dvh for dynamic viewport.
+overflow-x: hidden prevents horizontal scroll.
+
+5. Touch target foundations
+---------------------------
+  --touch-min: 44px applied to button, [role="button"], a, input, select, textarea
+  -webkit-tap-highlight-color: transparent removes tap flash
+
+6. Service worker / API caching
+---------------------------------
+No service worker registered. No vite-plugin-pwa. No API response caching.
+App is online-only by design.
+
+7. Build verification
+----------------------
+npm run build: exit 0, 31 modules transformed, built in 263ms.
+LSP diagnostics on App.tsx: clean (0 errors, 0 warnings).
+
+Note: A 180x180 PNG apple-touch-icon would improve compatibility with
+iOS versions prior to 15. Current SVG reference works on iOS 15+.
+For a personal PWA on a modern iPhone, SVG is sufficient.
