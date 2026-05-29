@@ -9,3 +9,7 @@ docs/
 .vercel/
 *.log
 .vercel
+dist/
+.omo/run-continuation/
+.omo/drafts/
+.omo/boulder.json
